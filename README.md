@@ -1,4 +1,8 @@
+
+
 # Growa IoT Gateway Smart Contract
+
+![Growa IoT Gateway](Cohort2024.jpg)
 
 ## Overview
 
