@@ -1,450 +1,202 @@
 import Principal "mo:base/Principal";
 import Time "mo:base/Time";
-import Text "mo:base/Text";
-import Nat "mo:base/Nat";
-import Int "mo:base/Int";
-import Float "mo:base/Float";
 import HashMap "mo:base/HashMap";
-import _Array "mo:base/Array";
-import Iter "mo:base/Iter";
-import Buffer "mo:base/Buffer";
-import Result "mo:base/Result";
-import Char "mo:base/Char";
-import Nat32 "mo:base/Nat32";
+import Array "mo:base/Array";
+import Error "mo:base/Error";
+import Text "mo:base/Text";
+import Float "mo:base/Float";
 
-actor class IoTGateway() {
-    // ===== TYPES =====
-    type ReadingData = {
-        readingType : Text;
-        readingValue : Float;
-        readingUnit : Text;
-    };
-
-    type Role = {
-        #SUPER_ADMIN;
-        #SYSTEM_ADMIN;
-        #USER_ADMIN;
-        #DEVICE_MANAGER;
-        #ANALYST;
-        #OPERATOR;
-        #USER;
-    };
-
-    type UserStatus = {
-        #PENDING;
-        #APPROVED;
-        #REJECTED;
-        #SUSPENDED;
-    };
-
-    type User = {
-        principal : Principal;
-        name : Text;
-        email : Text;
-        role : Role;
-        status : UserStatus;
-        department : ?Text;
-        created : Int;
-        lastModified : Int;
-    };
-
-    type Device = {
-        hash : Text;
-        owner : Principal;
-        name : Text;
-        key : Text;
-        department : ?Text;
-        approved : Bool;
-        created : Int;
-        lastUsed : ?Int;
-    };
-
+actor SmartContract {
+    // Types
     type Reading = {
-        id : Text;
-        deviceHash : Text;
-        timestamp : Int;
-        data : [ReadingData];
+        entity_id: Text;
+        created_at: Int;
+        value: Float;
     };
 
-    // Variabile per il primo admin
-    private var initialAdmin : Principal = Principal.fromText("aaaaa-aa");
+    // State variables
+    private stable var owner: ?Principal = null;
+    private var authorizedUsers = HashMap.HashMap<Principal, Bool>(0, Principal.equal, Principal.hash);
+    private var readings = HashMap.HashMap<Text, [Reading]>(0, Text.equal, Text.hash);
 
-    // ===== STATE =====
-    private var users = HashMap.HashMap<Principal, User>(0, Principal.equal, Principal.hash);
-    private var devices = HashMap.HashMap<Text, Device>(0, Text.equal, Text.hash);
-    private var readings = HashMap.HashMap<Text, Reading>(0, Text.equal, Text.hash);
-    private var readingsByDevice = HashMap.HashMap<Text, [Text]>(0, Text.equal, Text.hash);
-
-    // ===== AUTH FUNCTIONS =====
-    public shared query func isAdmin(caller : Principal) : async Bool {
-        caller == initialAdmin or 
-        (switch(users.get(caller)) {
-            case(?user) user.role == #SYSTEM_ADMIN and user.status == #APPROVED;
-            case(null) false;
-        })
-    };
-
-    // Funzione per ottenere tutti gli utenti approvati
-    public query func getApprovedUsers() : async [User] {
-        Iter.toArray(
-            Iter.filter(users.vals(), func(u : User) : Bool { 
-                u.status == #APPROVED 
-            })
-        )
-    };
-
-    // Funzione per ottenere tutte le centraline approvate
-    public query func getApprovedDevices() : async [Device] {
-        Iter.toArray(
-            Iter.filter(devices.vals(), func(d : Device) : Bool { 
-                d.approved 
-            })
-        )
-    };
-
-    // Funzione per ottenere l'hash dell'utente
-    public shared(msg) func getUserHash() : async Text {
-        Principal.toText(msg.caller)
-    };
-
-    public shared(msg) func getUserRole() : async ?Role {
-        switch(users.get(msg.caller)) {
-            case(?user) ?user.role;
-            case(null) null;
-        }
-    };
-
-    // ===== USER MANAGEMENT =====
-    public shared(msg) func registerUser(name: Text, email: Text, department: ?Text) : async Bool {
-        // Check if user already exists
-        switch(users.get(msg.caller)) {
-            case(?_) return false;
-            case(null) {};
-        };
-
-        // Controlla se è il primo utente
-        let isFirstUser = users.size() == 0;
-
-        let user: User = {
-            principal = msg.caller;
-            name = name;
-            email = email;
-            role = if (isFirstUser) #SYSTEM_ADMIN else #USER;
-            status = if (isFirstUser) #APPROVED else #PENDING;
-            department = department;
-            created = Time.now();
-            lastModified = Time.now();
-        };
-        users.put(msg.caller, user);
-        
-        // Se è il primo utente, imposta anche il principal come admin iniziale
-        if (isFirstUser) {
-            initialAdmin := msg.caller;
-        };
-        
-        true
-    };
-
-    public shared(msg) func approveUser(userPrincipal: Principal) : async Bool {
-        let caller = msg.caller;
-        let isAdminUser = await isAdmin(caller);
-        assert(isAdminUser);
-        
-        switch(users.get(userPrincipal)) {
-            case(?user) {
-                let updatedUser : User = {
-                    principal = user.principal;
-                    name = user.name;
-                    email = user.email;
-                    role = user.role;
-                    status = #APPROVED;
-                    department = user.department;
-                    created = user.created;
-                    lastModified = Time.now();
-                };
-                users.put(userPrincipal, updatedUser);
-                true
+    // Admin assignment function - can only be called once if no owner exists
+    public shared(msg) func assignAdmin() : async Text {
+        switch(owner) {
+            case null {
+                owner := ?msg.caller;
+                return "Admin rights assigned successfully";
             };
-            case(null) false;
-        }
-    };
-
-    // ===== DEVICE MANAGEMENT =====
-    public shared(msg) func registerDevice(name: Text, department: ?Text) : async ?{hash: Text; key: Text} {
-        switch(users.get(msg.caller)) {
-            case(?user) {
-                if (user.status != #APPROVED) return null;
-                
-                let hash = _generateDeviceHash(msg.caller, name, Time.now());
-                let key = _generateDeviceKey(hash);
-                
-                let device: Device = {
-                    hash = hash;
-                    owner = msg.caller;
-                    name = name;
-                    key = key;
-                    department = department;
-                    approved = false;
-                    created = Time.now();
-                    lastUsed = null;
-                };
-                
-                devices.put(hash, device);
-                ?{hash; key}
-            };
-            case(null) null;
-        }
-    };
-
-    public shared(msg) func approveDevice(deviceHash: Text) : async Bool {
-        let caller = msg.caller;
-        let isAdminUser = await isAdmin(caller);
-        assert(isAdminUser);
-        
-        switch(devices.get(deviceHash)) {
-            case(?device) {
-                let updatedDevice : Device = {
-                    hash = device.hash;
-                    owner = device.owner;
-                    name = device.name;
-                    key = device.key;
-                    department = device.department;
-                    approved = true;
-                    created = device.created;
-                    lastUsed = device.lastUsed;
-                };
-                devices.put(deviceHash, updatedDevice);
-                true
-            };
-            case(null) false;
-        }
-    };
-
-    // ===== READINGS MANAGEMENT =====
-    public shared(msg) func addReading(deviceHash: Text, deviceKey: Text, readingText: Text) : async Result.Result<Text, Text> {
-        switch(devices.get(deviceHash)) {
-            case(?device) {
-                if (not device.approved or device.key != deviceKey) {
-                    return #err("Invalid device authentication");
-                };
-
-                let parseResult = _parseReading(readingText);
-                switch(parseResult) {
-                    case(#ok(data)) {
-                        let readingId = _generateReadingId(deviceHash, Time.now());
-                        let newReading : Reading = {
-                            id = readingId;
-                            deviceHash = deviceHash;
-                            timestamp = Time.now();
-                            data = data;
-                        };
-
-                        readings.put(readingId, newReading);
-
-                        // Update device lastUsed
-                        devices.put(deviceHash, {
-                            hash = device.hash;
-                            owner = device.owner;
-                            name = device.name;
-                            key = device.key;
-                            department = device.department;
-                            approved = device.approved;
-                            created = device.created;
-                            lastUsed = ?Time.now();
-                        });
-
-                        // Update index
-                        switch(readingsByDevice.get(deviceHash)) {
-                            case(?deviceReadings) {
-                                readingsByDevice.put(deviceHash, _Array.append(deviceReadings, [readingId]));
-                            };
-                            case(null) {
-                                readingsByDevice.put(deviceHash, [readingId]);
-                            };
-                        };
-
-                        #ok(readingId)
-                    };
-                    case(#err(e)) #err(e);
-                };
-            };
-            case(null) #err("Device not found");
-        };
-    };
-
-    // ===== QUERIES =====
-    public query func getDevicesByOwner(owner: Principal) : async [Device] {
-        Iter.toArray(
-            Iter.filter(devices.vals(), func (d: Device) : Bool {
-                d.owner == owner
-            })
-        )
-    };
-
-    public query func getPendingDevices() : async [Device] {
-        Iter.toArray(
-            Iter.filter(devices.vals(), func (d: Device) : Bool {
-                not d.approved
-            })
-        )
-    };
-
-    public query func getDeviceReadings(deviceHash: Text) : async [Reading] {
-        switch(readingsByDevice.get(deviceHash)) {
-            case(?readingIds) {
-                let result = Buffer.Buffer<Reading>(0);
-                for (id in readingIds.vals()) {
-                    switch(readings.get(id)) {
-                        case(?r) { result.add(r); };
-                        case(null) {};
-                    };
-                };
-                Buffer.toArray(result)
-            };
-            case(null) { [] };
-        }
-    };
-
-    public query func getAllUsers() : async [User] {
-        Iter.toArray(users.vals())
-    };
-
-    public query func getPendingUsers() : async [User] {
-        Iter.toArray(
-            Iter.filter(users.vals(), func (u: User) : Bool {
-                u.status == #PENDING
-            })
-        )
-    };
-
-    // ===== UTILS =====
-    // Funzione di parsing stringa personalizzata
-    private func _parseReading(inputString: Text) : Result.Result<[ReadingData], Text> {
-        let readings = Buffer.Buffer<ReadingData>(0);
-        
-        // Rimuovi eventuali spazi iniziali e finali
-        let cleanText = Text.trim(inputString, #char ' ');
-        
-        // Dividi la stringa in parti
-        let props = Text.split(cleanText, #char ',');
-        
-        var currentReading : ?ReadingData = null;
-        
-        for (prop in props) {
-            let keyValue = Text.split(prop, #char ':');
-            let keyValueArray = Iter.toArray<Text>(keyValue);
-            
-            if (keyValueArray.size() >= 2) {
-                let key = Text.trim(keyValueArray[0], #char ' ');
-                let value = Text.trim(keyValueArray[1], #char ' ');
-                
-                switch(key) {
-                    case ("type") {
-                        // Se c'è una lettura precedente, aggiungila
-                        switch(currentReading) {
-                            case(?reading) { readings.add(reading); };
-                            case(null) {};
-                        };
-                        
-                        // Inizia una nuova lettura
-                        currentReading := ?{
-                            readingType = value;
-                            readingValue = 0.0;
-                            readingUnit = "";
-                        };
-                    };
-                    case ("value") { 
-                        switch(currentReading) {
-                            case(?reading) {
-                                currentReading := ?{
-                                    readingType = reading.readingType;
-                                    readingValue = _textToFloat(value);
-                                    readingUnit = reading.readingUnit;
-                                };
-                            };
-                            case(null) {};
-                        };
-                    };
-                    case ("unit") { 
-                        switch(currentReading) {
-                            case(?reading) {
-                                currentReading := ?{
-                                    readingType = reading.readingType;
-                                    readingValue = reading.readingValue;
-                                    readingUnit = value;
-                                };
-                            };
-                            case(null) {};
-                        };
-                    };
-                    case (_) {};
-                };
+            case (?_) {
+                throw Error.reject("Admin already assigned");
             };
         };
-        
-        // Aggiungi l'ultima lettura se presente
-        switch(currentReading) {
-            case(?reading) { readings.add(reading); };
-            case(null) {};
-        };
-        
-        if (readings.size() > 0) {
-            #ok(Buffer.toArray(readings))
-        } else {
-            #err("No readings parsed")
-        }
     };
 
-    // Funzione di conversione Float personalizzata
-    private func _textToFloat(text : Text) : Float {
-        let trimmedText = Text.trim(text, #char ' ');
-        switch(_parseFloat(trimmedText)) {
-            case(?v) v;
-            case(null) 0.0;
-        }
-    };
-
-    private func _parseFloat(text : Text) : ?Float {
-        var floatValue : Float = 0.0;
-        var isNegative = false;
-        var hasDecimal = false;
-        var decimalPlace = 0;
-
-        for (char in text.chars()) {
-            if (Char.isDigit(char)) {
-                let digitValue = Nat32.toNat(Char.toNat32(char) - Char.toNat32('0'));
-                if (hasDecimal) {
-                    floatValue += Float.fromInt(digitValue) * Float.pow(10.0, -Float.fromInt(decimalPlace));
-                    decimalPlace += 1;
+    // Transfer ownership to a new admin
+    public shared(msg) func transferOwnership(newOwner: Principal) : async Text {
+        switch(owner) {
+            case null {
+                throw Error.reject("No admin assigned yet");
+            };
+            case (?currentOwner) {
+                if (Principal.equal(msg.caller, currentOwner)) {
+                    owner := ?newOwner;
+                    return "Ownership transferred successfully to new admin";
                 } else {
-                    floatValue *= 10.0;
-                    floatValue += Float.fromInt(digitValue);
-                }
-            } else if (char == '-') {
-                isNegative := true;
-            } else if (char == '.' or char == ',') {
-                hasDecimal := true;
-                decimalPlace := 1;
+                    throw Error.reject("Only current admin can transfer ownership");
+                };
+            };
+        };
+    };
+
+    // Check if caller is admin
+    private func isAdmin(caller: Principal) : Bool {
+        switch(owner) {
+            case null { return false; };
+            case (?currentOwner) { return Principal.equal(caller, currentOwner); };
+        };
+    };
+
+    // Add authorized user
+    public shared(msg) func addAuthorizedUser(user: Principal) : async Text {
+        if (not isAdmin(msg.caller)) {
+            throw Error.reject("Only admin can add authorized users");
+        };
+        authorizedUsers.put(user, true);
+        return "User authorized successfully";
+    };
+
+    // Remove authorized user
+    public shared(msg) func removeAuthorizedUser(user: Principal) : async Text {
+        if (not isAdmin(msg.caller)) {
+            throw Error.reject("Only admin can remove authorized users");
+        };
+        authorizedUsers.delete(user);
+        return "User removed successfully";
+    };
+
+    // Insert reading
+    public shared(msg) func insertReading(entity_id: Text, value: Float) : async Text {
+        switch(authorizedUsers.get(msg.caller)) {
+            case null {
+                throw Error.reject("Unauthorized user");
+            };
+            case (?authorized) {
+                if (not authorized) {
+                    throw Error.reject("Unauthorized user");
+                };
+                
+                let reading: Reading = {
+                    entity_id = entity_id;
+                    created_at = Time.now();
+                    value = value;
+                };
+
+                switch(readings.get(entity_id)) {
+                    case null {
+                        readings.put(entity_id, [reading]);
+                    };
+                    case (?existingReadings) {
+                        let newReadings = Array.append(existingReadings, [reading]);
+                        readings.put(entity_id, newReadings);
+                    };
+                };
+
+                return "Reading inserted successfully";
+            };
+        };
+    };
+
+    // Get readings by time range
+    public query func getReadings(entity_id: Text, start_time: Int, end_time: Int) : async [Reading] {
+        switch(readings.get(entity_id)) {
+            case null { return []; };
+            case (?entityReadings) {
+                return Array.filter(entityReadings, func (reading: Reading) : Bool {
+                    reading.created_at >= start_time and reading.created_at <= end_time
+                });
+            };
+        };
+    };
+
+    // Get all readings for a specific entity_id
+    public query func getAllReadingsForEntity(entity_id: Text) : async [(Int, Float)] {
+        switch(readings.get(entity_id)) {
+            case null { 
+                return []; 
+            };
+            case (?entityReadings) {
+                let mapped = Array.map<Reading, (Int, Float)>(
+                    entityReadings, 
+                    func (reading: Reading) : (Int, Float) {
+                        (reading.created_at, reading.value)
+                    }
+                );
+                return mapped;
+            };
+        };
+    };
+
+    // Get readings for multiple entities
+    public query func getMultipleEntityReadings(entity_ids: [Text]) : async [(Text, [(Int, Float)])] {
+        Array.map<Text, (Text, [(Int, Float)])>(
+            entity_ids,
+            func (entity_id: Text) : (Text, [(Int, Float)]) {
+                let entityReadings = switch(readings.get(entity_id)) {
+                    case null { []; };
+                    case (?readings) {
+                        Array.map<Reading, (Int, Float)>(
+                            readings,
+                            func (reading: Reading) : (Int, Float) {
+                                (reading.created_at, reading.value)
+                            }
+                        );
+                    };
+                };
+                (entity_id, entityReadings)
             }
+        );
+    };
+
+    // Get current admin
+    public query func getAdmin() : async ?Principal {
+        return owner;
+    };
+
+    // Get readings for multiple entities with time range
+    public query func getMultipleEntityReadingsInTimeRange(entity_ids: [Text], start_time: Int, end_time: Int) : async [(Text, [(Int, Float)])] {
+        Array.map<Text, (Text, [(Int, Float)])>(
+            entity_ids,
+            func (entity_id: Text) : (Text, [(Int, Float)]) {
+                let entityReadings = switch(readings.get(entity_id)) {
+                    case null { []; };
+                    case (?readings) {
+                        // First filter by time range
+                        let filteredReadings = Array.filter<Reading>(
+                            readings,
+                            func (reading: Reading) : Bool {
+                                reading.created_at >= start_time and reading.created_at <= end_time
+                            }
+                        );
+                        // Then map to (timestamp, value) tuples
+                        Array.map<Reading, (Int, Float)>(
+                            filteredReadings,
+                            func (reading: Reading) : (Int, Float) {
+                                (reading.created_at, reading.value)
+                            }
+                        );
+                    };
+                };
+                (entity_id, entityReadings)
+            }
+        );
+    };
+
+    // Check if user is authorized
+    public query func isUserAuthorized(user: Principal) : async Bool {
+        switch(authorizedUsers.get(user)) {
+            case null { return false; };
+            case (?authorized) { return authorized; };
         };
-
-        if (isNegative) {
-            floatValue *= -1.0;
-        };
-
-        ?floatValue
-    };
-
-    // Funzioni di generazione ID
-    private func _generateDeviceHash(owner: Principal, name: Text, timestamp: Int) : Text {
-        Principal.toText(owner) # name # Nat.toText(Int.abs(timestamp))
-    };
-
-    private func _generateDeviceKey(hash: Text) : Text {
-        hash # Nat.toText(Int.abs(Time.now()))
-    };
-
-    private func _generateReadingId(deviceHash: Text, timestamp: Int) : Text {
-        deviceHash # Nat.toText(Int.abs(timestamp))
     };
 }
