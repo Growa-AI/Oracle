@@ -12,7 +12,7 @@ At its core, this smart contract implements a sophisticated authorization system
 
 The architecture of our smart contract has been carefully crafted to provide both flexibility and security. At the foundation of our design lies a robust data model that efficiently organizes sensor readings while maintaining quick access patterns for various query types.
 
-![Growa Flow](flow.svg)
+![Growa Flow](contract-architecture.png)
 
 ### Data Model
 
