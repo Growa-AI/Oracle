@@ -1,0 +1,148 @@
+<svg viewBox="0 0 1200 1000" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background with subtle grid -->
+    <defs>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#f0f0f0" stroke-width="1"/>
+        </pattern>
+    </defs>
+    <rect width="1200" height="1000" fill="url(#grid)"/>
+
+    <!-- Title and Subtitle -->
+    <text x="600" y="50" text-anchor="middle" font-size="28" font-weight="bold" fill="#2c3e50">
+        Growa Smart Contract Architecture
+    </text>
+    <text x="600" y="80" text-anchor="middle" font-size="16" fill="#7f8c8d">
+        Comprehensive System Overview and Data Flow
+    </text>
+
+    <!-- Core Contract Components -->
+    <g transform="translate(0, 20)">
+        <!-- Admin System -->
+        <rect x="50" y="120" width="250" height="200" rx="15" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+        <text x="175" y="150" text-anchor="middle" font-size="18" font-weight="bold" fill="#1976d2">Administrative System</text>
+        
+        <!-- Admin Functions -->
+        <rect x="70" y="170" width="210" height="130" rx="8" fill="#ffffff" stroke="#90caf9" stroke-width="1"/>
+        <text x="175" y="190" text-anchor="middle" font-size="14" fill="#1976d2">Core Functions</text>
+        <text x="80" y="215" font-size="12" fill="#333">• assignAdmin()</text>
+        <text x="80" y="235" font-size="12" fill="#333">• transferOwnership(newOwner)</text>
+        <text x="80" y="255" font-size="12" fill="#333">• isAdmin(caller)</text>
+        <text x="80" y="275" font-size="12" fill="#333">• getAdmin()</text>
+
+        <!-- User Management -->
+        <rect x="350" y="120" width="250" height="200" rx="15" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2"/>
+        <text x="475" y="150" text-anchor="middle" font-size="18" font-weight="bold" fill="#7b1fa2">User Management</text>
+        
+        <!-- User Functions -->
+        <rect x="370" y="170" width="210" height="130" rx="8" fill="#ffffff" stroke="#ce93d8" stroke-width="1"/>
+        <text x="475" y="190" text-anchor="middle" font-size="14" fill="#7b1fa2">Authorization Control</text>
+        <text x="380" y="215" font-size="12" fill="#333">• addAuthorizedUser(user)</text>
+        <text x="380" y="235" font-size="12" fill="#333">• removeAuthorizedUser(user)</text>
+        <text x="380" y="255" font-size="12" fill="#333">• isUserAuthorized(user)</text>
+        <text x="380" y="275" font-size="12" fill="#333">• HashMap<Principal, Bool></text>
+
+        <!-- Data Storage -->
+        <rect x="650" y="120" width="500" height="200" rx="15" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2"/>
+        <text x="900" y="150" text-anchor="middle" font-size="18" font-weight="bold" fill="#2e7d32">Data Management System</text>
+        
+        <!-- Storage Details -->
+        <rect x="670" y="170" width="230" height="130" rx="8" fill="#ffffff" stroke="#a5d6a7" stroke-width="1"/>
+        <text x="785" y="190" text-anchor="middle" font-size="14" fill="#2e7d32">Storage Structure</text>
+        <text x="680" y="215" font-size="12" fill="#333">• HashMap<Text, [Reading]></text>
+        <text x="680" y="235" font-size="12" fill="#333">• Time-series Organization</text>
+        <text x="680" y="255" font-size="12" fill="#333">• Entity-based Indexing</text>
+        <text x="680" y="275" font-size="12" fill="#333">• Optimized Query Support</text>
+
+        <!-- Reading Type -->
+        <rect x="910" y="170" width="220" height="130" rx="8" fill="#ffffff" stroke="#a5d6a7" stroke-width="1"/>
+        <text x="1020" y="190" text-anchor="middle" font-size="14" fill="#2e7d32">Reading Type</text>
+        <text x="920" y="215" font-size="12" fill="#333">entity_id: Text</text>
+        <text x="920" y="235" font-size="12" fill="#333">created_at: Int (timestamp)</text>
+        <text x="920" y="255" font-size="12" fill="#333">value: Float</text>
+        <text x="920" y="275" font-size="12" fill="#333">Immutable Data Structure</text>
+
+    </g>
+
+    <!-- Data Operations Section -->
+    <g transform="translate(0, 20)">
+        <rect x="50" y="380" width="1100" height="280" rx="15" fill="#fff3e0" stroke="#e65100" stroke-width="2"/>
+        <text x="600" y="410" text-anchor="middle" font-size="18" font-weight="bold" fill="#e65100">Data Operations</text>
+
+        <!-- Input Operations -->
+        <rect x="70" y="430" width="330" height="200" rx="8" fill="#ffffff" stroke="#ffb74d" stroke-width="1"/>
+        <text x="235" y="450" text-anchor="middle" font-size="14" fill="#e65100">Input Operations</text>
+        <text x="90" y="480" font-size="12" fill="#333">insertReading(entity_id: Text, value: Float)</text>
+        <text x="90" y="500" font-size="12" fill="#333">1. Authorization Check</text>
+        <text x="90" y="520" font-size="12" fill="#333">2. Data Validation</text>
+        <text x="90" y="540" font-size="12" fill="#333">3. Timestamp Generation</text>
+        <text x="90" y="560" font-size="12" fill="#333">4. Storage Operation</text>
+        <text x="90" y="580" font-size="12" fill="#333">5. Success Confirmation</text>
+
+        <!-- Query Operations -->
+        <rect x="420" y="430" width="330" height="200" rx="8" fill="#ffffff" stroke="#ffb74d" stroke-width="1"/>
+        <text x="585" y="450" text-anchor="middle" font-size="14" fill="#e65100">Query Operations</text>
+        <text x="440" y="480" font-size="12" fill="#333">getReadings(entity_id, start_time, end_time)</text>
+        <text x="440" y="500" font-size="12" fill="#333">getMultipleEntityReadings(entity_ids)</text>
+        <text x="440" y="520" font-size="12" fill="#333">getAllReadingsForEntity(entity_id)</text>
+        <text x="440" y="540" font-size="12" fill="#333">getMultipleEntityReadingsInTimeRange()</text>
+        <text x="440" y="560" font-size="12" fill="#333">Time-based Filtering</text>
+        <text x="440" y="580" font-size="12" fill="#333">Multi-entity Support</text>
+
+        <!-- Advanced Features -->
+        <rect x="770" y="430" width="360" height="200" rx="8" fill="#ffffff" stroke="#ffb74d" stroke-width="1"/>
+        <text x="950" y="450" text-anchor="middle" font-size="14" fill="#e65100">Advanced Features</text>
+        <text x="790" y="480" font-size="12" fill="#333">• Efficient Time-series Data Management</text>
+        <text x="790" y="500" font-size="12" fill="#333">• Multi-entity Query Optimization</text>
+        <text x="790" y="520" font-size="12" fill="#333">• Real-time Data Processing</text>
+        <text x="790" y="540" font-size="12" fill="#333">• Batch Operation Support</text>
+        <text x="790" y="560" font-size="12" fill="#333">• Historical Data Analysis</text>
+        <text x="790" y="580" font-size="12" fill="#333">• Performance Optimization</text>
+    </g>
+
+    <!-- External Integration Layer -->
+    <g transform="translate(0, 20)">
+        <rect x="50" y="700" width="1100" height="220" rx="15" fill="#fafafa" stroke="#455a64" stroke-width="2"/>
+        <text x="600" y="730" text-anchor="middle" font-size="18" font-weight="bold" fill="#455a64">External Integration Layer</text>
+
+        <!-- IoT Devices -->
+        <rect x="70" y="750" width="330" height="150" rx="8" fill="#ffffff" stroke="#90a4ae" stroke-width="1"/>
+        <text x="235" y="770" text-anchor="middle" font-size="14" fill="#455a64">IoT Device Integration</text>
+        <text x="90" y="800" font-size="12" fill="#333">• Sensor Data Collection</text>
+        <text x="90" y="820" font-size="12" fill="#333">• Real-time Data Transmission</text>
+        <text x="90" y="840" font-size="12" fill="#333">• Device Authentication</text>
+        <text x="90" y="860" font-size="12" fill="#333">• Data Validation</text>
+
+        <!-- Security Layer -->
+        <rect x="420" y="750" width="330" height="150" rx="8" fill="#ffffff" stroke="#90a4ae" stroke-width="1"/>
+        <text x="585" y="770" text-anchor="middle" font-size="14" fill="#455a64">Security Layer</text>
+        <text x="440" y="800" font-size="12" fill="#333">• Principal-based Authentication</text>
+        <text x="440" y="820" font-size="12" fill="#333">• Role-based Access Control</text>
+        <text x="440" y="840" font-size="12" fill="#333">• Data Encryption</text>
+        <text x="440" y="860" font-size="12" fill="#333">• Secure Communication</text>
+
+        <!-- External APIs -->
+        <rect x="770" y="750" width="360" height="150" rx="8" fill="#ffffff" stroke="#90a4ae" stroke-width="1"/>
+        <text x="950" y="770" text-anchor="middle" font-size="14" fill="#455a64">External APIs</text>
+        <text x="790" y="800" font-size="12" fill="#333">• RESTful API Interface</text>
+        <text x="790" y="820" font-size="12" fill="#333">• WebSocket Support</text>
+        <text x="790" y="840" font-size="12" fill="#333">• Data Export Capabilities</text>
+        <text x="790" y="860" font-size="12" fill="#333">• Third-party Integration</text>
+    </g>
+
+    <!-- Arrows and Connections -->
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+        </marker>
+    </defs>
+
+    <!-- Admin to User Management -->
+    <path d="M 300 220 L 350 220" fill="none" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <!-- User Management to Data Operations -->
+    <path d="M 475 320 L 475 380" fill="none" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <!-- Data Operations to Storage -->
+    <path d="M 900 380 L 900 320" fill="none" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <!-- Data Operations to External Layer -->
+    <path d="M 600 660 L 600 700" fill="none" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+</svg>
