@@ -1,4 +1,4 @@
-# ESP32-based Hydroponic Monitoring System with Internet Computer Integration
+# Hydroponic Monitoring System with Internet Computer Integration
 
 ## System Overview
 
